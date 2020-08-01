@@ -1,4 +1,4 @@
-# PDRNet
+# PDRNet: Pyramid Convolutional Network for Single Image Deraining
 CVPRW2019_UG2+
 # Citation
 @inproceedings{zhao2019pyramid,  
