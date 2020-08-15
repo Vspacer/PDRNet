@@ -1,20 +1,6 @@
 # -*- coding: utf-8 -*-
 
 # =============================================================================
-#  @article{zhang2017beyond,
-#    title={Beyond a {Gaussian} denoiser: Residual learning of deep {CNN} for image denoising},
-#    author={Zhang, Kai and Zuo, Wangmeng and Chen, Yunjin and Meng, Deyu and Zhang, Lei},
-#    journal={IEEE Transactions on Image Processing},
-#    year={2017},
-#    volume={26},
-#    number={7},
-#    pages={3142-3155},
-#  }
-# by Kai Zhang (08/2018)
-# cskaizhang@gmail.com
-# https://github.com/cszn
-# modified on the code from https://github.com/SaoYan/DnCNN-PyTorch
-# =============================================================================
 
 # run this to test the model
 
@@ -132,8 +118,6 @@ if __name__ == '__main__':
             if not os.path.exists(os.path.join(args.result_dir, set_cur)):
                 os.mkdir(os.path.join(args.result_dir, set_cur))
             psnrs = []
-            psnrs1 = []
-            psnrs2 = []
             ssims = []
             input_files = os.listdir(args.input_dir)
             pattern = re.compile('(x|_)(in|[0-9])*\.')
@@ -173,75 +157,35 @@ if __name__ == '__main__':
                 tmp_rainy = rainy.transpose((2,0,1))
                 tmp_rainy = torch.from_numpy(tmp_rainy.astype(np.float32)).view(1, 3, tmp_h, tmp_w).cuda()
                 ot, ot_subband1, ot_subband2 = model(tmp_rainy)
-                ot1 =  idwt_97(ot_subband1)
-                ot2 =  idwt_97(idwt_97(ot_subband2))
                 ot = ot.view(3, rainy.shape[0], rainy.shape[1])
                 ot = ot.cpu()
                 ot = ot.detach().numpy().astype(np.float32)
                 ot = ot.transpose((1, 2, 0)) #HWC
                 ot = ot[:gt.shape[0], :gt.shape[1], :]
 
-                print(ot1.shape)
-
-                ot1 = ot1.view(3, rainy.shape[0], rainy.shape[1])
-                ot1 = ot1.cpu()
-                ot1 = ot1.detach().numpy().astype(np.float32)
-                ot1 = ot1.transpose((1, 2, 0)) #HWC
-                ot1 = ot1[:gt.shape[0], :gt.shape[1], :]
-                ot2 = ot2.view(3, rainy.shape[0], rainy.shape[1])
-                ot2 = ot2.cpu()
-                ot2 = ot2.detach().numpy().astype(np.float32)
-                ot2 = ot2.transpose((1, 2, 0)) #HWC
-                ot2 = ot2[:gt.shape[0], :gt.shape[1], :]
-
-                print(np.max(ot2-ot1))
-                print(np.max(ot2-ot))
                 torch.cuda.synchronize()
                 elapsed_time = time.time() - start_time
-                    #print('%10s : %10s : %2.4f second' % (set_cur, im, elapsed_time))
-
-                    #psnr_x_ = compare_psnr(x, x_)
-                    #ssim_x_ = compare_ssim(x, x_)
-                    #print('%10s : %10s : %2.4f second PSNR:%.2f SSIM:%.2f' % (set_cur, im, elapsed_time, psnr_x_, ssim_x_))
 
                 #norm_range(ot, None)
                 if args.save_result:
                     save_result(ot, path=os.path.join(args.result_dir, set_cur, 'ot0_derained' + input_file))  # save the denoised image
-                    save_result(ot1, path=os.path.join(args.result_dir, set_cur, 'ot1_derained' + input_file))  # save the denoised image
-                    save_result(ot2, path=os.path.join(args.result_dir, set_cur, 'ot2_derained' + input_file))  # save the denoised image
-                '''
-                if args.save_result:
-                    save_result(ot, path='./derained_H_GTacc1.jpg')  # save the denoised image
-                '''
                 ot = Image.fromarray(np.clip(np.around(ot), 0, 255).astype(np.uint8))
-                ot1 = Image.fromarray(np.clip(np.around(ot1), 0, 255).astype(np.uint8))
-                ot2 = Image.fromarray(np.clip(np.around(ot2), 0, 255).astype(np.uint8))
                 gt = Image.fromarray(np.clip(np.around(gt), 0, 255).astype(np.uint8))
                 ot_y = np.array(ot.convert('YCbCr'))[:,:,0]
-                ot1_y = np.array(ot1.convert('YCbCr'))[:,:,0]
-                ot2_y = np.array(ot2.convert('YCbCr'))[:,:,0]
                 gt_y = np.array(gt.convert('YCbCr'))[:,:,0]
                 print(ot_y.shape)
                 print(gt_y.shape)
                 psnr_x_ = compare_psnr(ot_y, gt_y)
-                psnr_x_1 = compare_psnr(ot1_y, gt_y)
-                psnr_x_2 = compare_psnr(ot2_y, gt_y)
 
                 ssim_x_ = compare_ssim(ot_y, gt_y)
                 print('%10s : %10s : %2.4f second PSNR:%.2f  SSIM:%.2f' % (set_cur, input_file, elapsed_time, psnr_x_, ssim_x_))
                 psnrs.append(psnr_x_)
-                psnrs1.append(psnr_x_1)
-                psnrs2.append(psnr_x_2)
                 ssims.append(ssim_x_)
             psnr_avg = np.mean(psnrs)
-            psnr_avg1 = np.mean(psnrs1)
-            psnr_avg2 = np.mean(psnrs2)
             ssim_avg = np.mean(ssims)
             if args.save_result:
                 save_result(np.hstack((psnrs, ssims)), path=os.path.join(args.result_dir, set_cur, 'results.txt'))
             log('Datset: {0:10s} \n  PSNR = {1:2.2f}dB, SSIM = {2:1.4f}'.format(set_cur, psnr_avg, ssim_avg))
-            print(psnr_avg1)
-            print(psnr_avg2)
 
 
 
